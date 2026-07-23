@@ -1,0 +1,109 @@
+diff --git a/slime/backends/sglang_utils/sglang_engine.py b/slime/backends/sglang_utils/sglang_engine.py
+index 7e23f59..47b19f4 100644
+--- a/slime/backends/sglang_utils/sglang_engine.py
++++ b/slime/backends/sglang_utils/sglang_engine.py
+@@ -1,6 +1,8 @@
+ import dataclasses
+ import logging
+ import multiprocessing
++import os
++import signal
+ import time
+ 
+ import requests
+@@ -261,14 +263,37 @@ class SGLangEngine(RayActor):
+         logger.info(f"Shutdown engine {self.server_host}:{self.server_port}...")
+         if self.node_rank == 0:
+             worker_url = f"http://{self.server_host}:{self.server_port}"
+-            if parse(sglang_router.__version__) <= parse("0.2.1") or self.args.use_slime_router:
+-                response = requests.post(
+-                    f"http://{self.router_ip}:{self.router_port}/remove_worker?url=http://{self.server_host}:{self.server_port}"
++            try:
++                if parse(sglang_router.__version__) <= parse("0.2.1") or self.args.use_slime_router:
++                    response = requests.post(
++                        f"http://{self.router_ip}:{self.router_port}/remove_worker?url=http://{self.server_host}:{self.server_port}"
++                    )
++                else:
++                    response = requests.delete(f"http://{self.router_ip}:{self.router_port}/workers/{worker_url}")
++                response.raise_for_status()
++            except requests.RequestException as exc:
++                logger.warning(
++                    "Router deregistration failed during engine shutdown; forcing local cleanup: %s",
++                    exc,
+                 )
+-            else:
+-                response = requests.delete(f"http://{self.router_ip}:{self.router_port}/workers/{worker_url}")
+-            response.raise_for_status()
+-        kill_process_tree(self.process.pid)
++        try:
++            kill_process_tree(self.process.pid)
++        except ProcessLookupError:
++            logger.info("Engine process %s already exited", self.process.pid)
++
++    def fault_inject_actor_death(self):
++        """Kill the owned HTTP server and this Ray actor for chaos testing."""
++        if os.environ.get("RL_ENABLE_DESTRUCTIVE_CHAOS") != "1":
++            raise PermissionError("RL_ENABLE_DESTRUCTIVE_CHAOS=1 is required")
++        logger.warning(
++            "Injecting SGLang actor death for rank=%s server_pid=%s",
++            self.rank,
++            getattr(self.process, "pid", None),
++        )
++        try:
++            self.shutdown()
++        finally:
++            os.kill(os.getpid(), signal.SIGKILL)
+ 
+     def get_weight_version(self):
+         if self.node_rank != 0:
+diff --git a/slime/ray/rollout.py b/slime/ray/rollout.py
+index ab76c33..43a897f 100644
+--- a/slime/ray/rollout.py
++++ b/slime/ray/rollout.py
+@@ -88,6 +88,27 @@ class RolloutManager:
+     def get_rollout_engines_and_lock(self):
+         return self.rollout_engines, self.rollout_engine_lock, self.num_new_engines
+ 
++    def fault_recover_rollout_engine(self, rollout_engine_id: int):
++        """Atomically replace a dead rollout engine after an authorized chaos injection."""
++        if os.environ.get("RL_ENABLE_DESTRUCTIVE_CHAOS") != "1":
++            raise PermissionError("RL_ENABLE_DESTRUCTIVE_CHAOS=1 is required")
++        if not 0 <= rollout_engine_id < len(self.rollout_engines):
++            raise ValueError(f"invalid rollout engine id: {rollout_engine_id}")
++        logger.warning("Replacing chaos-killed rollout engine %s", rollout_engine_id)
++        for i in range(
++            rollout_engine_id * self.nodes_per_engine,
++            (rollout_engine_id + 1) * self.nodes_per_engine,
++        ):
++            engine = self.all_rollout_engines[i]
++            if engine is not None:
++                try:
++                    ray.kill(engine)
++                except Exception as exc:
++                    logger.info("Dead rollout engine %s could not be killed again: %s", i, exc)
++            self.all_rollout_engines[i] = None
++        self.num_new_engines = init_rollout_engines(self.args, self.pg, self.all_rollout_engines)
++        return {"engine_id": rollout_engine_id, "new_engines": self.num_new_engines}
++
+     def get_num_rollout_per_epoch(self):
+         assert self.args.rollout_global_dataset
+         return len(self.data_source.dataset) // self.args.rollout_batch_size
+diff --git a/slime/backends/fsdp_utils/update_weight_utils.py b/slime/backends/fsdp_utils/update_weight_utils.py
+index 8e19496..22eb0b7 100644
+--- a/slime/backends/fsdp_utils/update_weight_utils.py
++++ b/slime/backends/fsdp_utils/update_weight_utils.py
+@@ -198,6 +198,14 @@ class UpdateWeightFromDistributed(UpdateWeight):
+         self._is_src_rank = dist.get_rank() == 0
+         if self._is_src_rank:
+             self._group_name = "slime"
++            if hasattr(self, "_model_update_groups"):
++                refs = [
++                    engine.destroy_weights_update_group.remote(self._group_name)
++                    for engine in self.rollout_engines
++                ]
++                ray.get(refs)
++                dist.destroy_process_group(self._model_update_groups)
++                del self._model_update_groups
+             master_address = ray._private.services.get_node_ip_address()
+             with socket.socket() as sock:
+                 sock.bind(("", 0))

@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "policies": [
+    "round-robin",
+    "least-requests",
+    "least-queued-tokens",
+    "cache-aware-group",
+    "power-of-two",
+    "fixed-pack",
+    "fixed-even-split",
+    "load-proportional-split",
+    "adaptive-group",
+    "offline-oracle"
+  ],
+  "group_sizes": [2, 4, 8, 16],
+  "prompt_token_buckets": [[64, 256], [256, 1024], [1024, 4096]],
+  "output_token_buckets": [[64, 256], [256, 512], [512, 2048]],
+  "seeds": [0, 1, 2],
+  "repetitions": 3,
+  "max_policy_lag": 1
+}

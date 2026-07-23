@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: python -m pip install -e '.[test]'
+      - name: Python tests
+        run: python -m pytest -q
+      - name: Compile Python
+        run: python -m compileall -q router integrations scripts tests
+      - name: Validate shell entrypoints
+        run: |
+          bash -n scripts/run_slime_qwen3_4b_4xa6000.sh
+          bash -n scripts/run_strict_sync_acceptance.sh
+          bash -n scripts/run_bounded_async_acceptance.sh
+          bash -n scripts/run_checkpoint_resume_acceptance.sh
+          bash -n scripts/run_prefetch_fault_acceptance.sh
+          bash -n scripts/run_maturity_acceptance.sh
+          bash -n scripts/run_actor_death_acceptance.sh
+          bash -n scripts/run_network_partition_acceptance.sh
+          bash -n scripts/run_host_loss_recovery_acceptance.sh
+          bash -n scripts/run_long_soak_acceptance.sh
+          bash -n scripts/run_production_gate.sh

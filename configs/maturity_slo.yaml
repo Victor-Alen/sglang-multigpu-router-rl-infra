@@ -1,0 +1,13 @@
+schema_version: 1
+release_candidate:
+  min_automated_tests: 81
+  min_soak_batches: 8
+  max_policy_lag: 1
+  max_buffered_batches: 1
+  max_version_mismatches: 0
+  max_soak_prefetch_failures: 0
+  max_soak_strict_fallbacks: 0
+  required_fault_prefetch_failures: 1
+  required_fault_strict_fallbacks: 1
+  require_checkpoint_model_optimizer_scheduler_rng: true
+  require_dataset_cursor_restore: true

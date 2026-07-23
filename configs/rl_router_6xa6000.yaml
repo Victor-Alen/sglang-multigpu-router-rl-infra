@@ -1,0 +1,24 @@
+workers:
+  - name: rollout-0
+    base_url: http://127.0.0.1:30004
+    gpu: 4
+    tensor_parallel_size: 1
+  - name: rollout-1
+    base_url: http://127.0.0.1:30005
+    gpu: 5
+    tensor_parallel_size: 1
+
+rl:
+  policy: adaptive-group
+  initial_policy_version: 0
+  heartbeat_timeout_seconds: 15
+  max_policy_lag: 1
+  max_prefetched_rollout_batches: 1
+  retry_mode: same_seed
+  deadline_seconds: 300
+  state_dir: results/rl_state
+
+trainer:
+  gpu_ids: [0, 1, 2, 3]
+  backend: fsdp2
+  activation_checkpointing: true

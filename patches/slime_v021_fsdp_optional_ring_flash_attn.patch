@@ -1,0 +1,68 @@
+diff --git a/slime/backends/fsdp_utils/actor.py b/slime/backends/fsdp_utils/actor.py
+index fe4ca84..8ea3235 100644
+--- a/slime/backends/fsdp_utils/actor.py
++++ b/slime/backends/fsdp_utils/actor.py
+@@ -7,7 +7,14 @@ import ray
+ import torch
+ import torch.distributed as dist
+ import torch.nn.functional as F
+-from ring_flash_attn import substitute_hf_flash_attn, update_ring_flash_attn_params
++
++_RING_FLASH_ATTN_IMPORT_ERROR = None
++try:
++    from ring_flash_attn import substitute_hf_flash_attn, update_ring_flash_attn_params
++except ModuleNotFoundError as exc:
++    # Ring FlashAttention is only needed when context_parallel_size > 1.
++    _RING_FLASH_ATTN_IMPORT_ERROR = exc
++    substitute_hf_flash_attn = update_ring_flash_attn_params = None
+ from tqdm import tqdm
+ from transformers import AutoConfig
+ 
+@@ -223,6 +230,10 @@ class FSDPTrainRayActor(TrainRayActor):
+ 
+         # Setup Ring Flash Attention with CP group from mesh (only when cp_size > 1)
+         if self.cp_size > 1:
++            if _RING_FLASH_ATTN_IMPORT_ERROR is not None:
++                raise RuntimeError(
++                    "context_parallel_size > 1 requires a working FlashAttention 2 installation"
++                ) from _RING_FLASH_ATTN_IMPORT_ERROR
+             substitute_hf_flash_attn(self.cp_group, heads_k_stride=1)
+             logger.info(f"[Rank {rank}] CP initialized via device mesh")
+         else:
+diff --git a/slime/ray/rollout.py b/slime/ray/rollout.py
+--- a/slime/ray/rollout.py
++++ b/slime/ray/rollout.py
+@@ -411,7 +411,7 @@ def init_rollout_engines(args, pg, all_rollout_engines):
+     num_new_engines = len(rollout_engines)
+ 
+     if num_new_engines == 0:
+-        return num_new_engines, None
++        return num_new_engines
+ 
+     if args.rollout_external:
+         addr_and_ports = _allocate_rollout_engine_addr_and_ports_external(args=args, rollout_engines=rollout_engines)
+diff --git a/slime/backends/fsdp_utils/update_weight_utils.py b/slime/backends/fsdp_utils/update_weight_utils.py
+--- a/slime/backends/fsdp_utils/update_weight_utils.py
++++ b/slime/backends/fsdp_utils/update_weight_utils.py
+@@ -177,7 +177,12 @@ class UpdateWeightFromDistributed(UpdateWeight):
+     def __init__(self, args: Namespace, model: torch.nn.Module) -> None:
+         self.args = args
+         self.model = model
++        self.weight_version = 0
++
++    def update_weights(self) -> None:
++        self.weight_version += 1
++        super().update_weights()
+ 
+     def connect_rollout_engines(
+         self,
+         rollout_engines: Sequence[ActorHandle],
+@@ -232,7 +237,8 @@ class UpdateWeightFromDistributed(UpdateWeight):
+         refs = [
+             engine.update_weights_from_distributed.remote(
+                 names=[name for name, _ in named_tensors],
+                 dtypes=[param.dtype for _, param in named_tensors],
+                 shapes=[param.shape for _, param in named_tensors],
+                 group_name=self._group_name,
++                weight_version=str(self.weight_version),
+             )

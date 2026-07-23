@@ -1,0 +1,21 @@
+schema_version: 1
+production:
+  min_automated_tests: 93
+  min_soak_seconds: 7200
+  min_soak_batches: 1200
+  min_terminal_throughput_ratio: 0.5
+  max_gpu_temperature_c: 90
+  max_steady_memory_growth_mib: 2048
+  max_policy_lag: 1
+  max_buffered_batches: 1
+  max_version_mismatches: 0
+  max_soak_prefetch_failures: 0
+  max_soak_strict_fallbacks: 0
+  max_actor_death_mttr_seconds: 120
+  min_network_partition_seconds: 10
+  max_network_partition_mttr_seconds: 60
+  max_host_loss_recovery_seconds: 1200
+  required_host_failure_scope: private_single_node_ray_control_plane_and_job
+  min_host_recovery_iteration_advance: 2
+  require_host_state_restore: true
+  require_dataset_cursor_restore: true

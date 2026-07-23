@@ -1,0 +1,25 @@
+Captured: 2026-07-15 Asia/Shanghai
+Host: ubuntu, Ubuntu 22.04.5 LTS, kernel 5.19.0-32-generic
+CPU: 2 x Intel Xeon Platinum 8488C, 96 physical / 192 logical CPUs
+NUMA: node0 CPUs 0-47,96-143; node1 CPUs 48-95,144-191
+GPU: 8 x NVIDIA RTX A6000, 49140 MiB each
+Driver: 550.78
+CUDA reported by driver: 12.4
+SGLang source commit: 3d1b54e6b63aa6030ac2e30de691df6991fc4d2e
+Router source commit before this implementation: 75bdb2515cd49b78496b122e2bfed438c5754f8d
+Storage: /home on /dev/sda, 15T total, 3.0T free at capture time
+
+Topology summary:
+- GPUs 0-3 have NUMA affinity 0.
+- GPUs 4-7 have NUMA affinity 1.
+- Every GPU-to-GPU link is reported as SYS.
+- No NVLink connection is reported.
+- The implementation plan asks for six GPUs; this host physically has eight.
+
+Safety observation at capture time:
+- GPU 5 was idle.
+- GPUs 0,1,2,3,4,6,7 were occupied by other users' processes.
+- No six-GPU run was started and no external process was terminated.
+
+Run scripts/collect_system_info.sh before every formal experiment because occupancy,
+software versions, free storage, and topology may change.

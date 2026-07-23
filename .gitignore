@@ -1,0 +1,29 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+.omo/
+
+# Local model, dataset and training outputs
+results/
+*.jsonl
+*.log
+*.distcp
+*.pt
+*.safetensors
+*.tar.gz
+*.whl
+
+# Vendor snapshots and generated artifacts
+papers/open-source-baselines/
+papers/**/*.pdf
+*.png
+*.jpg
+*.jpeg
+
+# Credentials and local machine state
+*.pem
+*.key
+.env
+.env.*
+configs/*secret*

@@ -1,0 +1,54 @@
+{
+  "suite_id": "mlsys_router_soft_sweep_rate32281p2_opt30b_4w_tp2",
+  "common": {
+    "num_prompts": 80,
+    "concurrency": 8,
+    "max_tokens": 128,
+    "temperature": 0.1,
+    "prefix_chars": 512
+  },
+  "seeds": [0],
+  "policies": [
+    {
+      "name": "rr",
+      "router_command": "python router/app.py --config configs/cluster_4worker_tp2.yaml --policy rr --port 8088"
+    },
+    {
+      "name": "least-load",
+      "router_command": "python router/app.py --config configs/cluster_4worker_tp2.yaml --policy least-load --port 8088"
+    },
+    {
+      "name": "ca-a1.2-b0.8",
+      "prefix_chars": 512,
+      "router_command": "python router/app.py --config configs/cluster_4worker_tp2.yaml --policy cache-aware --prefix-chars 512 --cache-entries 4096 --cache-hit-weight 1.2 --cache-load-weight 0.8 --fallback-hit-rate-threshold -1 --port 8088"
+    },
+    {
+      "name": "ca-a1.4-b0.8",
+      "prefix_chars": 512,
+      "router_command": "python router/app.py --config configs/cluster_4worker_tp2.yaml --policy cache-aware --prefix-chars 512 --cache-entries 4096 --cache-hit-weight 1.4 --cache-load-weight 0.8 --fallback-hit-rate-threshold -1 --port 8088"
+    },
+    {
+      "name": "ca-a1.6-b0.8",
+      "prefix_chars": 512,
+      "router_command": "python router/app.py --config configs/cluster_4worker_tp2.yaml --policy cache-aware --prefix-chars 512 --cache-entries 4096 --cache-hit-weight 1.6 --cache-load-weight 0.8 --fallback-hit-rate-threshold -1 --port 8088"
+    },
+    {
+      "name": "ca-a1.4-b1.0",
+      "prefix_chars": 512,
+      "router_command": "python router/app.py --config configs/cluster_4worker_tp2.yaml --policy cache-aware --prefix-chars 512 --cache-entries 4096 --cache-hit-weight 1.4 --cache-load-weight 1.0 --fallback-hit-rate-threshold -1 --port 8088"
+    },
+    {
+      "name": "ca-a1.6-b1.0",
+      "prefix_chars": 512,
+      "router_command": "python router/app.py --config configs/cluster_4worker_tp2.yaml --policy cache-aware --prefix-chars 512 --cache-entries 4096 --cache-hit-weight 1.6 --cache-load-weight 1.0 --fallback-hit-rate-threshold -1 --port 8088"
+    }
+  ],
+  "workloads": [
+    {"name": "high", "num_prompts": 80, "concurrency": 8, "request_rate": 32},
+    {"name": "medium", "num_prompts": 80, "concurrency": 8, "request_rate": 28},
+    {"name": "low", "num_prompts": 80, "concurrency": 8, "request_rate": 1.2},
+    {"name": "phase-shift", "num_prompts": 80, "concurrency": 8, "request_rate": 28},
+    {"name": "burst", "num_prompts": 80, "concurrency": 8, "request_rate": 32},
+    {"name": "mixed-length", "num_prompts": 80, "concurrency": 8, "request_rate": 28}
+  ]
+}
