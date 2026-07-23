@@ -1,7 +1,13 @@
+import shutil
+
+import pytest
+
 from scripts.write_run_manifest import build_manifest
 
 
 def test_manifest_hashes_artifacts(tmp_path) -> None:
+    if shutil.which("nvidia-smi") is None:
+        pytest.skip("GPU diagnostics are unavailable on this runner")
     artifact = tmp_path / "evidence.json"
     artifact.write_text("{}\n", encoding="utf-8")
     result = build_manifest(

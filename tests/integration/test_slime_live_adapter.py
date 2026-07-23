@@ -2,6 +2,8 @@ import asyncio
 from argparse import Namespace
 from types import SimpleNamespace
 
+import pytest
+
 from integrations.slime_adapter import (
     SlimeRLRouteCoordinator,
     endpoint_to_worker_id,
@@ -95,6 +97,7 @@ def test_runtime_records_framework_version_transition(tmp_path, monkeypatch):
 
 
 def test_worker_discovery_retries_transient_transport_failure(tmp_path, monkeypatch):
+    pytest.importorskip("slime.utils.http_utils")
     import slime.utils.http_utils
 
     monkeypatch.setenv("RL_ROUTER_RUN_ID", "retry-test")
